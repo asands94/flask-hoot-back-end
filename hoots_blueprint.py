@@ -13,7 +13,7 @@ hoots_blueprint = Blueprint('hoots_blueprint', __name__)
 @token_required
 def create_hoot():
     try:
-        new_hoot = request.json
+        new_hoot = request.get_json()
         new_hoot["author"] = g.user["id"]
         connection = get_db_connection()
         cursor = connection.cursor(
