@@ -20,15 +20,24 @@ def create_comment(hoot_id):
         cursor.execute("""
                         INSERT INTO comments (hoot, author, text)
                         VALUES (%s, %s, %s)
-                        RETURNING *
+                        RETURNING id
                         """,
                        (hoot_id, new_comment_data['author'],
                         new_comment_data['text'])
                        )
+        comment_id = cursor.fetchone()["id"]
+        cursor.execute("""SELECT c.id, 
+                            c.author AS comment_author_id, 
+                            c.text AS comment_text, 
+                            u_comment.username AS comment_author_username
+                        FROM comments c
+                        JOIN users u_comment ON c.author = u_comment.id
+                        WHERE c.id = %s
+                       """, (comment_id,))
         created_comment = cursor.fetchone()
         connection.commit()
         connection.close()
-        return jsonify({"comment": created_comment}), 201
+        return jsonify(created_comment), 201
     except Exception as error:
         return jsonify({"error": str(error)}), 500
 

@@ -21,15 +21,26 @@ def create_hoot():
         cursor.execute("""
                         INSERT INTO hoots (author, title, text, category)
                         VALUES (%s, %s, %s, %s)
-                        RETURNING *
+                        RETURNING id
                         """,
                        (new_hoot['author'], new_hoot['title'],
                         new_hoot['text'], new_hoot['category'])
                        )
+        hoot_id = cursor.fetchone()["id"]
+        cursor.execute("""SELECT h.id, 
+                            h.author AS hoot_author_id, 
+                            h.title, 
+                            h.text, 
+                            h.category, 
+                            u_hoot.username AS author_username
+                        FROM hoots h
+                        JOIN users u_hoot ON h.author = u_hoot.id
+                        WHERE h.id = %s
+                       """, (hoot_id,))
         created_hoot = cursor.fetchone()
         connection.commit()
         connection.close()
-        return jsonify({"hoot": created_hoot}), 201
+        return jsonify(created_hoot), 201
     except Exception as error:
         return jsonify({"error": str(error)}), 500
 
@@ -53,7 +64,7 @@ def hoots_index():
 
         connection.commit()
         connection.close()
-        return jsonify({"hoots": consolidated_hoots}), 200
+        return jsonify(consolidated_hoots), 200
     except Exception as error:
         return jsonify({"error": str(error)}), 500
 
@@ -76,7 +87,7 @@ def show_hoot(hoot_id):
         if unprocessed_hoot is not None:
             processed_hoot = consolidate_comments_in_hoots(unprocessed_hoot)[0]
             connection.close()
-            return jsonify({"hoot": processed_hoot}), 200
+            return jsonify(processed_hoot), 200
         else:
             connection.close()
             return jsonify({"error": "Hoot not found"}), 404
@@ -101,10 +112,21 @@ def update_hoot(hoot_id):
             return jsonify({"error": "Unauthorized"}), 401
         cursor.execute("UPDATE hoots SET title = %s, text = %s, category = %s WHERE hoots.id = %s RETURNING *",
                        (updated_hoot_data["title"], updated_hoot_data["text"], updated_hoot_data["category"], hoot_id))
+        hoot_id = cursor.fetchone()["id"]
+        cursor.execute("""SELECT h.id, 
+                            h.author AS hoot_author_id, 
+                            h.title, 
+                            h.text, 
+                            h.category, 
+                            u_hoot.username AS author_username
+                        FROM hoots h
+                        JOIN users u_hoot ON h.author = u_hoot.id
+                        WHERE h.id = %s
+                       """, (hoot_id,))
         updated_hoot = cursor.fetchone()
         connection.commit()
         connection.close()
-        return jsonify({"hoot": updated_hoot}), 200
+        return jsonify(updated_hoot), 200
     except Exception as error:
         return jsonify({"error": str(error)}), 500
 
@@ -117,15 +139,15 @@ def delete_hoot(hoot_id):
         cursor = connection.cursor(
             cursor_factory=psycopg2.extras.RealDictCursor)
         cursor.execute("SELECT * FROM hoots WHERE hoots.id = %s", (hoot_id,))
-        hoot_to_update = cursor.fetchone()
-        if hoot_to_update is None:
+        hoot_to_delete = cursor.fetchone()
+        if hoot_to_delete is None:
             return jsonify({"error": "hoot not found"}), 404
         connection.commit()
-        if hoot_to_update["author"] is not g.user["id"]:
+        if hoot_to_delete["author"] is not g.user["id"]:
             return jsonify({"error": "Unauthorized"}), 401
         cursor.execute("DELETE FROM hoots WHERE hoots.id = %s", (hoot_id,))
         connection.commit()
         connection.close()
-        return jsonify({"message": "hoot deleted successfully"}), 200
+        return jsonify(hoot_to_delete), 200
     except Exception as error:
         return jsonify({"error": str(error)}), 500
