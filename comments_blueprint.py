@@ -2,8 +2,10 @@ from flask import Blueprint, jsonify, request, g
 from db_helpers import get_db_connection
 import psycopg2.extras
 from auth_middleware import token_required
+from flask_cors import CORS
 
 comments_blueprint = Blueprint('comments_blueprint', __name__)
+CORS(comments_blueprint)
 
 
 @comments_blueprint.route('/hoots/<hoot_id>/comments', methods=['POST'])

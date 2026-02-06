@@ -4,10 +4,12 @@ import bcrypt
 import psycopg2
 import psycopg2.extras
 from flask import Blueprint, jsonify, request
+from flask_cors import CORS
 from db_helpers import get_db_connection
 
 
 authentication_blueprint = Blueprint('authentication_blueprint', __name__)
+CORS(authentication_blueprint)
 
 
 @authentication_blueprint.route('/auth/sign-up', methods=['POST'])

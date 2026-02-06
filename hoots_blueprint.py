@@ -4,9 +4,11 @@ import psycopg2
 import psycopg2.extras
 from auth_middleware import token_required
 from db_helpers import get_db_connection, consolidate_comments_in_hoots
+from flask_cors import CORS
 
 
 hoots_blueprint = Blueprint('hoots_blueprint', __name__)
+CORS(hoots_blueprint)
 
 
 @hoots_blueprint.route('/hoots', methods=['POST'])

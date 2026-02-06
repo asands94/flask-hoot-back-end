@@ -8,7 +8,6 @@ from auth_blueprint import authentication_blueprint
 from hoots_blueprint import hoots_blueprint
 from comments_blueprint import comments_blueprint
 
-
 app = Flask(__name__)
 CORS(app)
 app.register_blueprint(authentication_blueprint)
