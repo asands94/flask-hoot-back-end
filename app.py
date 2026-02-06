@@ -1,4 +1,5 @@
 from flask import Flask, jsonify
+from flask_cors import CORS
 import os
 import psycopg2
 import psycopg2.extras
@@ -9,6 +10,7 @@ from comments_blueprint import comments_blueprint
 
 
 app = Flask(__name__)
+CORS(app)
 app.register_blueprint(authentication_blueprint)
 app.register_blueprint(hoots_blueprint)
 app.register_blueprint(comments_blueprint)
@@ -37,7 +39,7 @@ def users_index():
 
 @app.route('/users/<user_id>')
 @token_required
-def users_SHOW(user_id):
+def users_show(user_id):
     if int(user_id) != g.user["id"]:
         return jsonify({"err": "Unauthorized"}), 403
     connection = get_db_connection()
