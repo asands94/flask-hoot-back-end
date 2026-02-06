@@ -9,7 +9,7 @@ from db_helpers import get_db_connection
 
 
 authentication_blueprint = Blueprint('authentication_blueprint', __name__)
-CORS(authentication_blueprint)
+# CORS(authentication_blueprint)
 
 
 @authentication_blueprint.route('/auth/sign-up', methods=['POST'])
