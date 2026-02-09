@@ -9,7 +9,8 @@ from hoots_blueprint import hoots_blueprint
 from comments_blueprint import comments_blueprint
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={
+     r"/*": {"origins": "http://localhost:5173"}}, supports_credentials=True)
 app.register_blueprint(authentication_blueprint)
 app.register_blueprint(hoots_blueprint)
 app.register_blueprint(comments_blueprint)

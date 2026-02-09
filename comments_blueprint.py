@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request, g
 from db_helpers import get_db_connection
 import psycopg2.extras
 from auth_middleware import token_required
+from datetime import datetime
 
 comments_blueprint = Blueprint('comments_blueprint', __name__)
 
@@ -18,17 +19,18 @@ def create_comment(hoot_id):
             cursor_factory=psycopg2.extras.RealDictCursor)
 
         cursor.execute("""
-                        INSERT INTO comments (hoot, author, text)
-                        VALUES (%s, %s, %s)
+                        INSERT INTO comments (hoot, author, text, created_at)
+                        VALUES (%s, %s, %s, %s)
                         RETURNING id
                         """,
                        (hoot_id, new_comment_data['author'],
-                        new_comment_data['text'])
+                        new_comment_data['text'], datetime.utcnow())
                        )
         comment_id = cursor.fetchone()["id"]
-        cursor.execute("""SELECT c.id, 
+        cursor.execute("""SELECT c.id AS comment_id, 
                             c.author AS comment_author_id, 
-                            c.text AS comment_text, 
+                            c.text AS comment_text,
+                            c.created_at AS comment_created_at, 
                             u_comment.username AS comment_author_username
                         FROM comments c
                         JOIN users u_comment ON c.author = u_comment.id

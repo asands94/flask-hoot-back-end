@@ -4,6 +4,8 @@ import psycopg2
 import psycopg2.extras
 from auth_middleware import token_required
 from db_helpers import get_db_connection, consolidate_comments_in_hoots
+from main import upload_image
+from datetime import datetime
 
 
 hoots_blueprint = Blueprint('hoots_blueprint', __name__)
@@ -13,25 +15,36 @@ hoots_blueprint = Blueprint('hoots_blueprint', __name__)
 @token_required
 def create_hoot():
     try:
-        new_hoot = request.get_json()
-        new_hoot["author"] = g.user["id"]
+        image = request.files.get("image_url")
+        image_url = None
+        if image:
+            image_url = upload_image(image)
+
+        author_id = g.user["id"]
+
+        title = request.form.get("title")
+        text = request.form.get("text")
+        category = request.form.get("category")
+
         connection = get_db_connection()
         cursor = connection.cursor(
             cursor_factory=psycopg2.extras.RealDictCursor)
         cursor.execute("""
-                        INSERT INTO hoots (author, title, text, category)
-                        VALUES (%s, %s, %s, %s)
+                        INSERT INTO hoots (author, title, text, category, created_at, image_url)
+                        VALUES (%s, %s, %s, %s,%s, %s)
                         RETURNING id
                         """,
-                       (new_hoot['author'], new_hoot['title'],
-                        new_hoot['text'], new_hoot['category'])
+                       (author_id, title, text, category,
+                        datetime.utcnow(), image_url)
                        )
         hoot_id = cursor.fetchone()["id"]
-        cursor.execute("""SELECT h.id, 
-                            h.author AS hoot_author_id, 
-                            h.title, 
-                            h.text, 
-                            h.category, 
+        cursor.execute("""SELECT h.id,
+                            h.author AS hoot_author_id,
+                            h.title,
+                            h.text,
+                            h.category,
+                            h.created_at,
+                            h.image_url,
                             u_hoot.username AS author_username
                         FROM hoots h
                         JOIN users u_hoot ON h.author = u_hoot.id
@@ -51,7 +64,7 @@ def hoots_index():
         connection = get_db_connection()
         cursor = connection.cursor(
             cursor_factory=psycopg2.extras.RealDictCursor)
-        cursor.execute("""SELECT h.id, h.author AS hoot_author_id, h.title, h.text, h.category, u_hoot.username AS author_username, c.id AS comment_id, c.text AS comment_text, u_comment.username AS comment_author_username
+        cursor.execute("""SELECT h.id, h.author AS hoot_author_id, h.title, h.text, h.category, h.created_at, h.image_url, u_hoot.username AS author_username, c.id AS comment_id, c.text AS comment_text, c.created_at AS comment_created_at,u_comment.username AS comment_author_username
                             FROM hoots h
                             INNER JOIN users u_hoot ON h.author = u_hoot.id
                             LEFT JOIN comments c ON h.id = c.hoot
@@ -76,7 +89,7 @@ def show_hoot(hoot_id):
         cursor = connection.cursor(
             cursor_factory=psycopg2.extras.RealDictCursor)
         cursor.execute("""
-            SELECT h.id, h.author AS hoot_author_id, h.title, h.text, h.category, u_hoot.username AS author_username, c.id AS comment_id, c.text AS comment_text, u_comment.username AS comment_author_username
+            SELECT h.id, h.author AS hoot_author_id, h.title, h.text, h.category, h.created_at, h.image_url, u_hoot.username AS author_username, c.id AS comment_id, c.text AS comment_text, c.created_at AS comment_created_at, u_comment.username AS comment_author_username
             FROM hoots h
             INNER JOIN users u_hoot ON h.author = u_hoot.id
             LEFT JOIN comments c ON h.id = c.hoot
@@ -99,7 +112,15 @@ def show_hoot(hoot_id):
 @token_required
 def update_hoot(hoot_id):
     try:
-        updated_hoot_data = request.json
+        image = request.files.get("image_url")
+        image_url = None
+        if image:
+            image_url = upload_image(image)
+
+        title = request.form.get("title")
+        text = request.form.get("text")
+        category = request.form.get("category")
+
         connection = get_db_connection()
         cursor = connection.cursor(
             cursor_factory=psycopg2.extras.RealDictCursor)
@@ -110,14 +131,20 @@ def update_hoot(hoot_id):
         connection.commit()
         if hoot_to_update["author"] is not g.user["id"]:
             return jsonify({"error": "Unauthorized"}), 401
-        cursor.execute("UPDATE hoots SET title = %s, text = %s, category = %s WHERE hoots.id = %s RETURNING *",
-                       (updated_hoot_data["title"], updated_hoot_data["text"], updated_hoot_data["category"], hoot_id))
+
+        final_image_url = image_url if image_url else hoot_to_update.get(
+            "image_url")
+
+        cursor.execute("UPDATE hoots SET title = %s, text = %s, category = %s, image_url = %s WHERE hoots.id = %s RETURNING *",
+                       (title, text, category, final_image_url, hoot_id))
         hoot_id = cursor.fetchone()["id"]
         cursor.execute("""SELECT h.id, 
                             h.author AS hoot_author_id, 
                             h.title, 
                             h.text, 
                             h.category, 
+                            h.created_at,
+                            h.image_url,
                             u_hoot.username AS author_username
                         FROM hoots h
                         JOIN users u_hoot ON h.author = u_hoot.id
